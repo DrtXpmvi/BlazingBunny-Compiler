@@ -18,11 +18,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1️⃣ Checkout the repo
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # 2️⃣ Validate the compile key
       - name: Validate key
         shell: powershell
         run: |
@@ -31,26 +29,22 @@ jobs:
               exit 1
           }
 
-      # 3️⃣ Install Python 3.10
       - name: Install Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      # 4️⃣ Install build dependencies
       - name: Install build deps
         run: |
           python -m pip install --upgrade pip
           pip install nuitka cryptography requests
         shell: bash
 
-      # 5️⃣ Copy uploaded Python file
       - name: Copy uploaded file to working filename
         run: |
           cp "source/${{ github.event.inputs.filename }}" client.py
         shell: bash
 
-      # 6️⃣ Download Dependencies (modern Dependency Walker replacement)
       - name: Download Dependencies
         shell: powershell
         run: |
@@ -61,19 +55,12 @@ jobs:
           Expand-Archive -Path "$dwPath\deps.zip" -DestinationPath $dwPath
           Write-Host "Dependencies downloaded to $dwPath"
 
-      # 7️⃣ Set environment variable for Nuitka
-      - name: Set Nuitka dependency walker env
-        shell: powershell
-        run: |
-          $env:NUITKA_DEPENDENCY_WALKER = "$env:USERPROFILE\NuitkaDepends\Dependencies.exe"
-          Write-Host "NUITKA_DEPENDENCY_WALKER=$env:NUITKA_DEPENDENCY_WALKER"
-
-      # 8️⃣ Compile with Nuitka
       - name: Compile with Nuitka
-        run: python -m nuitka --onefile --standalone client.py
         shell: bash
+        run: |
+          export NUITKA_DEPENDENCY_WALKER="$HOME/NuitkaDepends/Dependencies.exe"
+          python -m nuitka --onefile --standalone client.py
 
-      # 9️⃣ Find the generated EXE
       - name: Find exe
         id: findexe
         run: |
@@ -83,7 +70,6 @@ jobs:
           echo "exe=$exe_path" >> $GITHUB_OUTPUT
         shell: bash
 
-      # 🔟 Upload the compiled EXE as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
