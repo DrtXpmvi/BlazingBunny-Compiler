@@ -6,58 +6,85 @@ on:
       filename:
         description: "Name of uploaded Python file inside 'source/'"
         required: true
+        type: string
       key:
         description: "Auth key"
         required: true
+        type: string
 
 jobs:
   build-windows:
     name: Build Windows EXE
     runs-on: windows-latest
+
     steps:
+      # 1️⃣ Checkout the repository
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      # 2️⃣ Validate the compile key
       - name: Validate key
         shell: powershell
         run: |
           if ("${{ github.event.inputs.key }}" -ne "${{ secrets.COMPILE_KEY }}") {
-            Write-Error "Invalid key"
-            exit 1
+              Write-Error "Invalid key"
+              exit 1
           }
 
+      # 3️⃣ Install Python 3.10
       - name: Install Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
+      # 4️⃣ Install build dependencies
       - name: Install build deps
         run: |
           python -m pip install --upgrade pip
           pip install nuitka cryptography requests
+        shell: bash
 
+      # 5️⃣ Copy uploaded Python file
       - name: Copy uploaded file to working filename
         run: |
           cp "source/${{ github.event.inputs.filename }}" client.py
-
-      - name: Compile with Nuitka
-        run: |
-          python -m nuitka --onefile --standalone client.py
         shell: bash
 
+      # 6️⃣ Download Dependency Walker for Windows
+      - name: Download Dependency Walker
+        shell: powershell
+        run: |
+          $dwPath = "$env:USERPROFILE\NuitkaDepends"
+          New-Item -ItemType Directory -Force -Path $dwPath
+          Invoke-WebRequest -Uri "https://dependencywalker.com/download/depends.zip" -OutFile "$dwPath\depends.zip"
+          Expand-Archive -Path "$dwPath\depends.zip" -DestinationPath $dwPath
+          Write-Host "Dependency Walker downloaded to $dwPath"
+
+      # 7️⃣ Set environment variable for Nuitka
+      - name: Set Nuitka dependency walker env
+        shell: powershell
+        run: |
+          $env:NUITKA_DEPENDENCY_WALKER = "$env:USERPROFILE\NuitkaDepends\depends.exe"
+          Write-Host "NUITKA_DEPENDENCY_WALKER=$env:NUITKA_DEPENDENCY_WALKER"
+
+      # 8️⃣ Compile with Nuitka
+      - name: Compile with Nuitka
+        run: python -m nuitka --onefile --standalone client.py
+        shell: bash
+
+      # 9️⃣ Find the generated EXE
       - name: Find exe
         id: findexe
         run: |
-          # Nuitka places exe in current dir when --onefile on Windows
           if [ -f client.exe ]; then echo "exe=client.exe" >> $GITHUB_OUTPUT; exit 0; fi
-          # fallback: search
           exe_path=$(find . -maxdepth 2 -type f -name "*.exe" | head -n1 || true)
-          if [ -z "$exe_path" ]; then echo "No exe"; exit 1; fi
+          if [ -z "$exe_path" ]; then echo "No exe found"; exit 1; fi
           echo "exe=$exe_path" >> $GITHUB_OUTPUT
+        shell: bash
 
+      # 🔟 Upload the compiled EXE as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: client-exe
           path: ${{ steps.findexe.outputs.exe }}
-
