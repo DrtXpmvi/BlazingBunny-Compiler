@@ -2,6 +2,15 @@ name: Build Windows EXE
 
 on:
   workflow_dispatch:
+    inputs:
+      filename:
+        description: "Name of the Python file to compile"
+        required: true
+        type: string
+      key:
+        description: "Encryption key"
+        required: true
+        type: string
 
 jobs:
   build:
@@ -20,7 +29,7 @@ jobs:
           pip install pyinstaller cryptography requests
 
       - name: Copy client file
-        run: cp source/Client1_decrypter.py client.py
+        run: cp source/${{ github.event.inputs.filename }} client.py
 
       - name: Build EXE
         run: pyinstaller --onefile client.py
