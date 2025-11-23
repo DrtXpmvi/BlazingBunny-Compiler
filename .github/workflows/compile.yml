@@ -18,7 +18,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1️⃣ Checkout the repository
+      # 1️⃣ Checkout the repo
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -50,21 +50,22 @@ jobs:
           cp "source/${{ github.event.inputs.filename }}" client.py
         shell: bash
 
-      # 6️⃣ Download Dependency Walker for Windows
-      - name: Download Dependency Walker
+      # 6️⃣ Download Dependencies (modern Dependency Walker replacement)
+      - name: Download Dependencies
         shell: powershell
         run: |
           $dwPath = "$env:USERPROFILE\NuitkaDepends"
           New-Item -ItemType Directory -Force -Path $dwPath
-          Invoke-WebRequest -Uri "https://dependencywalker.com/download/depends.zip" -OutFile "$dwPath\depends.zip"
-          Expand-Archive -Path "$dwPath\depends.zip" -DestinationPath $dwPath
-          Write-Host "Dependency Walker downloaded to $dwPath"
+          $url = "https://github.com/lucasg/Dependencies/releases/download/v1.11.1/Dependencies_x64_Release.zip"
+          Invoke-WebRequest -Uri $url -OutFile "$dwPath\deps.zip"
+          Expand-Archive -Path "$dwPath\deps.zip" -DestinationPath $dwPath
+          Write-Host "Dependencies downloaded to $dwPath"
 
       # 7️⃣ Set environment variable for Nuitka
       - name: Set Nuitka dependency walker env
         shell: powershell
         run: |
-          $env:NUITKA_DEPENDENCY_WALKER = "$env:USERPROFILE\NuitkaDepends\depends.exe"
+          $env:NUITKA_DEPENDENCY_WALKER = "$env:USERPROFILE\NuitkaDepends\Dependencies.exe"
           Write-Host "NUITKA_DEPENDENCY_WALKER=$env:NUITKA_DEPENDENCY_WALKER"
 
       # 8️⃣ Compile with Nuitka
