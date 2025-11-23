@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       filename:
-        description: "Name of the Python file to compile"
+        description: "Name of the Python file to compile (inside /source)"
         required: true
         type: string
       key:
-        description: "Encryption key"
+        description: "Encryption key (not used here but kept for API compatibility)"
         required: true
         type: string
 
@@ -28,14 +28,24 @@ jobs:
         run: |
           pip install pyinstaller cryptography requests
 
-      - name: Copy client file
-        run: cp source/${{ github.event.inputs.filename }} client.py
+      - name: Copy client file (Windows-safe)
+        run: |
+          Copy-Item "source/${{ github.event.inputs.filename }}" "client.py"
+          echo "Copied source file to client.py"
 
       - name: Build EXE
-        run: pyinstaller --onefile client.py
+        run: |
+          pyinstaller --onefile client.py
+
+      - name: Debug dist structure
+        run: |
+          echo "Dist folder:"
+          dir dist
+          echo "Client folder:"
+          dir dist\client
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
           name: client-exe
-          path: dist/client.exe
+          path: dist/client/client.exe
